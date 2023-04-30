@@ -1,4 +1,4 @@
-# Структура репозитория
+# Repository structure
 ```bash
 .
 ├── nbr // NBR library
