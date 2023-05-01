@@ -146,6 +146,51 @@ class NBRTrainer:
             "ndcg": ndcg
         }
     
+    def evaluate_fully(self, mode="dev", topk=[10,]):
+        if mode == "dev":
+            test_dataloader = self.dev_dataloader
+        else:
+            test_dataloader = self.test_dataloader
+
+        precisions, recalls, ndcgs = {f"@{k}": [] for k in topk}, {f"@{k}": [] for k in topk}, {f"@{k}": [] for k in topk}
+        self.model.eval()
+
+        progress_bar = tqdm(test_dataloader)
+        for batch in progress_bar:
+            proper_items = batch["proper_items"]
+            batch = {k: v.to(self.device) for k, v in batch.items() if k != "proper_items"}
+
+            items_scores = self.model.predict_for_user(
+                user_id=batch["user_id"][0],
+                t=batch["t"],
+                length=batch["length"],
+                history_time=batch["history_time"],
+            )
+            items_scores = items_scores.view(-1, self.corpus.n_items)
+            
+            for k in topk:
+                top_items = torch.topk(items_scores, k=k, dim=1).indices
+                top_items = top_items.cpu().detach().numpy()
+                for i in range(top_items.shape[0]):
+                    precision = get_precision(top_items[i], proper_items[i])
+                    recall = get_recall(top_items[i], proper_items[i])
+                    ndcg = get_ndcg(top_items[i], proper_items[i])
+
+                    precisions[f"@{k}"].append(precision)
+                    recalls[f"@{k}"].append(recall)
+                    ndcgs[f"@{k}"].append(ndcg)
+        
+        for k in topk:
+            precisions[f"@{k}"] = np.array(precisions[f"@{k}"]).mean()
+            recalls[f"@{k}"] = np.array(recalls[f"@{k}"]).mean()
+            ndcgs[f"@{k}"] = np.array(ndcgs[f"@{k}"]).mean()
+
+        return {
+            "precision": precisions,
+            "recall": recalls,
+            "ndcg": ndcgs
+        }
+    
     def get_predictions(self, mode="dev"):
         if mode == "dev":
             test_dataloader = self.dev_dataloader

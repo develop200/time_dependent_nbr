@@ -30,12 +30,17 @@ class NBRKNN(nn.Module):
         self.model = Annoy()
         self.model.set_query_arguments(self.model._n_trees * self.nearest_neighbors_num // 2)
         self.model.fit(self.user_emb)
+        self.neighbors_emb = torch.tensor(self.user_emb).to(self.device)
         self.user_emb = torch.tensor(self.user_emb).to(self.device)
 
         self.precalc_indices = None
     
+    def set_emb(self, user_emb):
+        self.user_emb = torch.tensor(user_emb).to(self.device)
+    
     def reset(self):
         self.user_emb = None
+        self.neighbors_emb = None
         self.model.reset()
         self.precalc_indices = None
         self.model = None
@@ -68,7 +73,7 @@ class NBRKNN(nn.Module):
             indices = torch.tensor(indices).to(self.device)
         else:
             indices = self.precalc_indices[user_ids].reshape((-1, self.nearest_neighbors_num))
-        predictions = self.alpha * user_emb + (1 - self.alpha) * self.user_emb[indices].mean(axis=1)
+        predictions = self.alpha * user_emb + (1 - self.alpha) * self.neighbors_emb[indices].mean(axis=1)
         predictions = predictions[torch.arange(predictions.shape[0]).to(self.device), item_ids]
 
         if get_l2_reg:
@@ -92,5 +97,5 @@ class NBRKNN(nn.Module):
             indices = torch.tensor(indices).to(self.device)
         else:
             indices = self.precalc_indices[user_id].reshape((-1, self.nearest_neighbors_num))
-        predictions = (self.alpha * user_emb + (1 - self.alpha) * self.user_emb[indices].mean(axis=1)).reshape(-1)
+        predictions = (self.alpha * user_emb + (1 - self.alpha) * self.neighbors_emb[indices].mean(axis=1)).reshape(-1)
         return predictions
