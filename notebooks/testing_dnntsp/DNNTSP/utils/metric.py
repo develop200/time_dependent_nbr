@@ -103,7 +103,7 @@ def get_metric(y_true, y_pred):
             scores: dict
     """
     result = {}
-    for top_k in [5, 10, 20, 30, 40]:
+    for top_k in [5, 10, 20, 25, 50, 100]:
         result.update({
             f'precision_{top_k}': precision_score(y_true, y_pred, top_k=top_k),
             f'recall_{top_k}': recall_score(y_true, y_pred, top_k=top_k),
